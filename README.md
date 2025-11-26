@@ -1,12 +1,11 @@
 ## Add Parallax Effect
 
-## 🔗 Quick Links
+### 🔗 Quick Links
 - [View Source Code](https://github.com/DemandFlow-Studio/hakim-webflow/blob/main/parallax.js)
 
-## 📦 Installation
+### 📦 Installation
 [Your installation docs here]
 
 
 ---
 Developed by [DemandFlow](https://demandflow.co)
-```
