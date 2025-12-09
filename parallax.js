@@ -7,13 +7,12 @@
     defaultSpeed: 2,
     defaultHeight: 130,
     mobileBreakpoint: 768,
-    observeDOM: true // Watch for dynamically added images
+    observeDOM: true
   };
   
   let instances = [];
   
   function initParallax() {
-    // Find all elements with data-parallax attribute
     const parallaxElements = document.querySelectorAll(`[${CONFIG.attribute}]`);
     
     if (parallaxElements.length === 0) return;
@@ -22,33 +21,75 @@
       // Skip if already initialized
       if (img.dataset.parallaxInit === 'true') return;
       
-      const parent = img.parentElement;
-      if (!parent) return;
-      
       // Get configuration from data attributes
       const speed = parseFloat(img.dataset.parallaxSpeed) || CONFIG.defaultSpeed;
       const imageHeight = parseInt(img.dataset.parallaxHeight) || CONFIG.defaultHeight;
       const disableMobile = img.dataset.parallaxMobile === 'false';
       const disableTablet = img.dataset.parallaxTablet === 'false';
       
-      // Setup parent container
-      const originalPosition = window.getComputedStyle(parent).position;
-      if (originalPosition === 'static') {
-        parent.style.position = 'relative';
-      }
-      parent.style.overflow = 'hidden';
+      // Create wrapper div if not already wrapped
+      let wrapper;
+      const parent = img.parentElement;
       
-      // Copy border-radius and other visual properties
-      const computedStyle = window.getComputedStyle(img);
-      if (computedStyle.borderRadius && computedStyle.borderRadius !== '0px') {
-        parent.style.borderRadius = computedStyle.borderRadius;
+      if (!parent.classList.contains('parallax-wrapper')) {
+        // Create new wrapper
+        wrapper = document.createElement('div');
+        wrapper.className = 'parallax-wrapper';
+        
+        // Copy computed styles from image to wrapper
+        const computedStyle = window.getComputedStyle(img);
+        
+        // Copy display properties
+        const imgDisplay = computedStyle.display;
+        if (imgDisplay === 'block') {
+          wrapper.style.display = 'block';
+        }
+        
+        // Copy dimensions if image has explicit width/height
+        const imgWidth = computedStyle.width;
+        const imgHeight = computedStyle.height;
+        if (imgWidth && imgWidth !== 'auto') {
+          wrapper.style.width = imgWidth;
+        }
+        if (imgHeight && imgHeight !== 'auto' && imgHeight !== '0px') {
+          wrapper.style.height = imgHeight;
+        }
+        
+        // Copy margin from image to wrapper
+        wrapper.style.marginTop = computedStyle.marginTop;
+        wrapper.style.marginRight = computedStyle.marginRight;
+        wrapper.style.marginBottom = computedStyle.marginBottom;
+        wrapper.style.marginLeft = computedStyle.marginLeft;
+        
+        // Copy border-radius
+        if (computedStyle.borderRadius && computedStyle.borderRadius !== '0px') {
+          wrapper.style.borderRadius = computedStyle.borderRadius;
+        }
+        
+        // Copy box-shadow
+        if (computedStyle.boxShadow && computedStyle.boxShadow !== 'none') {
+          wrapper.style.boxShadow = computedStyle.boxShadow;
+          img.style.boxShadow = 'none';
+        }
+        
+        // Set wrapper styles for parallax
+        wrapper.style.position = 'relative';
+        wrapper.style.overflow = 'hidden';
+        
+        // Insert wrapper before image and move image inside
+        parent.insertBefore(wrapper, img);
+        wrapper.appendChild(img);
+        
+        // Clear margin from image (now on wrapper)
+        img.style.margin = '0';
+      } else {
+        // Already wrapped
+        wrapper = parent;
       }
       
-      // Copy box-shadow if exists
-      if (computedStyle.boxShadow && computedStyle.boxShadow !== 'none') {
-        parent.style.boxShadow = computedStyle.boxShadow;
-        img.style.boxShadow = 'none';
-      }
+      // Setup wrapper
+      wrapper.style.position = 'relative';
+      wrapper.style.overflow = 'hidden';
       
       // Setup image
       img.style.position = 'relative';
@@ -58,6 +99,7 @@
       img.style.top = `-${(imageHeight - 100) / 2}%`;
       img.style.willChange = 'transform';
       img.style.borderRadius = '0';
+      img.style.display = 'block';
       
       // Mark as initialized
       img.dataset.parallaxInit = 'true';
@@ -65,7 +107,7 @@
       // Store instance data
       instances.push({
         img,
-        parent,
+        wrapper,
         speed,
         disableMobile,
         disableTablet
@@ -85,7 +127,7 @@
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     
-    instances.forEach(({ img, parent, speed, disableMobile, disableTablet }) => {
+    instances.forEach(({ img, wrapper, speed, disableMobile, disableTablet }) => {
       // Check if should disable on current breakpoint
       if ((disableMobile && windowWidth < CONFIG.mobileBreakpoint) ||
           (disableTablet && windowWidth >= CONFIG.mobileBreakpoint && windowWidth < 992)) {
@@ -93,7 +135,7 @@
         return;
       }
       
-      const rect = parent.getBoundingClientRect();
+      const rect = wrapper.getBoundingClientRect();
       
       // Only calculate if in viewport (performance optimization)
       if (rect.top < windowHeight && rect.bottom > 0) {
@@ -177,7 +219,7 @@
   window.WebflowParallax = {
     init: initParallax,
     update: updateParallax,
-    version: '1.0.0'
+    version: '1.1.0'
   };
   
 })();
