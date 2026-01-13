@@ -1,4 +1,4 @@
-// parallax-webflow.js - Version for CDN hosting
+// parallax-webflow.js - Version 2.3 with Scale-based Horizontal
 (function() { 
   'use strict';
   
@@ -6,6 +6,8 @@
     attribute: 'data-parallax',
     defaultSpeed: 2,
     defaultHeight: 130,
+    defaultHorizontalScale: 1.1, // Scale factor for horizontal
+    defaultDirection: 'vertical',
     mobileBreakpoint: 768,
     observeDOM: true
   };
@@ -22,8 +24,10 @@
       if (img.dataset.parallaxInit === 'true') return;
       
       // Get configuration from data attributes
+      const direction = (img.dataset.parallaxDirection || CONFIG.defaultDirection).toLowerCase();
       const speed = parseFloat(img.dataset.parallaxSpeed) || CONFIG.defaultSpeed;
       const imageHeight = parseInt(img.dataset.parallaxHeight) || CONFIG.defaultHeight;
+      const horizontalScale = parseFloat(img.dataset.parallaxScale) || CONFIG.defaultHorizontalScale;
       const disableMobile = img.dataset.parallaxMobile === 'false';
       const disableTablet = img.dataset.parallaxTablet === 'false';
       
@@ -91,15 +95,32 @@
       wrapper.style.position = 'relative';
       wrapper.style.overflow = 'hidden';
       
-      // Setup image
-      img.style.position = 'relative';
-      img.style.width = '100%';
-      img.style.height = `${imageHeight}%`;
+      // Setup image - SIMPLE approach
+      img.style.display = 'block';
       img.style.objectFit = 'cover';
-      img.style.top = `-${(imageHeight - 100) / 2}%`;
       img.style.willChange = 'transform';
       img.style.borderRadius = '0';
-      img.style.display = 'block';
+      
+      // Direction-specific setup
+      if (direction === 'horizontal' || direction === 'both') {
+        // For horizontal, just set basic styles
+        img.style.width = '100%';
+        img.style.height = direction === 'both' ? `${imageHeight}%` : '100%';
+        img.style.position = 'relative';
+        
+        // For vertical component in 'both' mode
+        if (direction === 'both') {
+          img.style.top = `-${(imageHeight - 100) / 2}%`;
+        } else {
+          img.style.top = '0';
+        }
+      } else {
+        // Vertical parallax (default)
+        img.style.position = 'relative';
+        img.style.width = '100%';
+        img.style.height = `${imageHeight}%`;
+        img.style.top = `-${(imageHeight - 100) / 2}%`;
+      }
       
       // Mark as initialized
       img.dataset.parallaxInit = 'true';
@@ -108,7 +129,10 @@
       instances.push({
         img,
         wrapper,
+        direction,
         speed,
+        imageHeight,
+        horizontalScale,
         disableMobile,
         disableTablet
       });
@@ -127,11 +151,11 @@
     const windowWidth = window.innerWidth;
     const windowHeight = window.innerHeight;
     
-    instances.forEach(({ img, wrapper, speed, disableMobile, disableTablet }) => {
+    instances.forEach(({ img, wrapper, direction, speed, imageHeight, horizontalScale, disableMobile, disableTablet }) => {
       // Check if should disable on current breakpoint
       if ((disableMobile && windowWidth < CONFIG.mobileBreakpoint) ||
           (disableTablet && windowWidth >= CONFIG.mobileBreakpoint && windowWidth < 992)) {
-        img.style.transform = 'translate3d(0, 0, 0)';
+        img.style.transform = 'none';
         return;
       }
       
@@ -139,9 +163,37 @@
       
       // Only calculate if in viewport (performance optimization)
       if (rect.top < windowHeight && rect.bottom > 0) {
+        // Calculate scroll progress from 0 to 1
         const scrollProgress = (windowHeight - rect.top) / (windowHeight + rect.height);
-        const parallaxOffset = (scrollProgress - 0.5) * 200 * speed;
-        img.style.transform = `translate3d(0, ${parallaxOffset}px, 0)`;
+        const centerProgress = scrollProgress - 0.5;
+        
+        let transformParts = [];
+        
+        if (direction === 'horizontal') {
+          // Horizontal: scale and translate
+          // Movement range based on how much extra width the scale creates
+          const extraSpace = (horizontalScale - 1) * 100; // e.g., 0.1 * 100 = 10%
+          const translateX = centerProgress * extraSpace * speed;
+          
+          transformParts.push(`scale(${horizontalScale})`);
+          transformParts.push(`translateX(${translateX}%)`);
+          
+        } else if (direction === 'both') {
+          // Both directions
+          const extraSpaceX = (horizontalScale - 1) * 100;
+          const translateX = centerProgress * extraSpaceX * speed;
+          const translateY = centerProgress * 100 * speed;
+          
+          transformParts.push(`scale(${horizontalScale})`);
+          transformParts.push(`translate(${translateX}%, ${translateY}%)`);
+          
+        } else {
+          // Vertical only (default)
+          const parallaxOffset = centerProgress * 200 * speed;
+          transformParts.push(`translate3d(0, ${parallaxOffset}px, 0)`);
+        }
+        
+        img.style.transform = transformParts.join(' ');
       }
     });
   }
@@ -219,7 +271,7 @@
   window.WebflowParallax = {
     init: initParallax,
     update: updateParallax,
-    version: '1.1.0'
+    version: '2.3.0'
   };
   
 })();
