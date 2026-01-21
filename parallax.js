@@ -1,4 +1,4 @@
-// parallax-webflow.js - Version 2.3 with Scale-based Horizontal
+// parallax-webflow.js - Version 2.4.2 with Scale-based Horizontal (RTL Default, Clamped)
 (function() { 
   'use strict';
   
@@ -170,18 +170,30 @@
         let transformParts = [];
         
         if (direction === 'horizontal') {
-          // Horizontal: scale and translate
-          // Movement range based on how much extra width the scale creates
-          const extraSpace = (horizontalScale - 1) * 100; // e.g., 0.1 * 100 = 10%
-          const translateX = centerProgress * extraSpace * speed;
+          // Horizontal: scale and translate (right-to-left by default)
+          // Maximum safe translation is half the extra space from scaling
+          // e.g., scale 1.1 = 10% extra width, so ±5% is the safe range
+          // Subtract small buffer (0.5%) to prevent sub-pixel rounding artifacts
+          const maxTranslate = Math.max(0, (((horizontalScale - 1) / 2) * 100) - 0.5);
+          
+          // Calculate desired translation
+          let translateX = -centerProgress * 2 * maxTranslate * speed;
+          
+          // Clamp to safe bounds to prevent empty space from showing
+          translateX = Math.max(-maxTranslate, Math.min(maxTranslate, translateX));
           
           transformParts.push(`scale(${horizontalScale})`);
           transformParts.push(`translateX(${translateX}%)`);
           
         } else if (direction === 'both') {
-          // Both directions
-          const extraSpaceX = (horizontalScale - 1) * 100;
-          const translateX = centerProgress * extraSpaceX * speed;
+          // Both directions (horizontal uses right-to-left by default)
+          // Maximum safe horizontal translation with buffer for sub-pixel rounding
+          const maxTranslateX = Math.max(0, (((horizontalScale - 1) / 2) * 100) - 0.5);
+          
+          // Calculate desired horizontal translation and clamp it
+          let translateX = -centerProgress * 2 * maxTranslateX * speed;
+          translateX = Math.max(-maxTranslateX, Math.min(maxTranslateX, translateX));
+          
           const translateY = centerProgress * 100 * speed;
           
           transformParts.push(`scale(${horizontalScale})`);
@@ -271,7 +283,7 @@
   window.WebflowParallax = {
     init: initParallax,
     update: updateParallax,
-    version: '2.3.0'
+    version: '2.4.2'
   };
   
 })();
