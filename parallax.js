@@ -1,4 +1,5 @@
-// parallax-webflow.js - Version 2.4.2 with Scale-based Horizontal (RTL Default, Clamped)
+// parallax-webflow.js - Version 2.5.0 with Scale-based Horizontal (RTL Default, Clamped, Resize-safe)
+
 (function() { 
   'use strict';
   
@@ -210,6 +211,34 @@
     });
   }
   
+  function recalculateDimensions() {
+    instances.forEach(({ img, wrapper }) => {
+      // Temporarily reset wrapper dimensions to let image flow naturally
+      const originalWidth = wrapper.style.width;
+      const originalHeight = wrapper.style.height;
+      wrapper.style.width = '';
+      wrapper.style.height = '';
+      
+      // Get fresh computed styles from image
+      const computedStyle = window.getComputedStyle(img);
+      const imgWidth = computedStyle.width;
+      const imgHeight = computedStyle.height;
+      
+      // Recalculate wrapper dimensions
+      if (imgWidth && imgWidth !== 'auto') {
+        wrapper.style.width = imgWidth;
+      } else {
+        wrapper.style.width = originalWidth;
+      }
+      
+      if (imgHeight && imgHeight !== 'auto' && imgHeight !== '0px') {
+        wrapper.style.height = imgHeight;
+      } else {
+        wrapper.style.height = originalHeight;
+      }
+    });
+  }
+  
   function attachScrollListener() {
     let ticking = false;
     
@@ -223,11 +252,14 @@
       }
     }, { passive: true });
     
-    // Handle resize
+    // Handle resize - recalculate dimensions and update parallax
     let resizeTimeout;
     window.addEventListener('resize', function() {
       clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(updateParallax, 150);
+      resizeTimeout = setTimeout(function() {
+        recalculateDimensions();
+        updateParallax();
+      }, 150);
     }, { passive: true });
   }
   
@@ -283,7 +315,8 @@
   window.WebflowParallax = {
     init: initParallax,
     update: updateParallax,
-    version: '2.4.2'
+    recalculate: recalculateDimensions,
+    version: '2.5.0'
   };
   
 })();
