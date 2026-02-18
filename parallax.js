@@ -1,4 +1,4 @@
-// parallax-webflow.js - Version 2.5.0 with Scale-based Horizontal (RTL Default, Clamped, Resize-safe)
+// parallax-webflow.js - Version 2.5.4 with Scale-based Horizontal (RTL Default, Clamped, Responsive)
 
 (function() { 
   'use strict';
@@ -12,6 +12,24 @@
     mobileBreakpoint: 768,
     observeDOM: true
   };
+  
+  // Inject CSS rules for parallax wrapper responsiveness
+  function injectStyles() {
+    if (document.getElementById('parallax-webflow-styles')) return;
+    
+    const style = document.createElement('style');
+    style.id = 'parallax-webflow-styles';
+    style.textContent = `
+      .parallax-wrapper {
+        display: block !important;
+        position: relative !important;
+        overflow: hidden !important;
+        box-sizing: border-box !important;
+        width: 100% !important;
+      }
+    `;
+    document.head.appendChild(style);
+  }
   
   let instances = [];
   
@@ -43,6 +61,7 @@
         
         // Copy computed styles from image to wrapper
         const computedStyle = window.getComputedStyle(img);
+        const parentStyle = window.getComputedStyle(parent);
         
         // Copy display properties
         const imgDisplay = computedStyle.display;
@@ -50,14 +69,11 @@
           wrapper.style.display = 'block';
         }
         
-        // Copy dimensions if image has explicit width/height
-        const imgWidth = computedStyle.width;
-        const imgHeight = computedStyle.height;
-        if (imgWidth && imgWidth !== 'auto') {
-          wrapper.style.width = imgWidth;
-        }
-        if (imgHeight && imgHeight !== 'auto' && imgHeight !== '0px') {
-          wrapper.style.height = imgHeight;
+        // Set height to match parent's height (for containers with explicit height)
+        // This ensures proper sizing for hero sections with vh, px, or % heights
+        const parentHeight = parentStyle.height;
+        if (parentHeight && parentHeight !== 'auto' && parentHeight !== '0px') {
+          wrapper.style.height = '100%';
         }
         
         // Copy margin from image to wrapper
@@ -212,30 +228,27 @@
   }
   
   function recalculateDimensions() {
-    instances.forEach(({ img, wrapper }) => {
-      // Temporarily reset wrapper dimensions to let image flow naturally
-      const originalWidth = wrapper.style.width;
-      const originalHeight = wrapper.style.height;
-      wrapper.style.width = '';
-      wrapper.style.height = '';
+    instances.forEach(({ img, wrapper, direction, imageHeight }) => {
+      // Reset transform temporarily
+      img.style.transform = 'none';
       
-      // Get fresh computed styles from image
-      const computedStyle = window.getComputedStyle(img);
-      const imgWidth = computedStyle.width;
-      const imgHeight = computedStyle.height;
-      
-      // Recalculate wrapper dimensions
-      if (imgWidth && imgWidth !== 'auto') {
-        wrapper.style.width = imgWidth;
+      // Re-apply direction-specific image styles
+      if (direction === 'horizontal') {
+        img.style.width = '100%';
+        img.style.height = '100%';
+        img.style.top = '0';
+      } else if (direction === 'both') {
+        img.style.width = '100%';
+        img.style.height = `${imageHeight}%`;
+        img.style.top = `-${(imageHeight - 100) / 2}%`;
       } else {
-        wrapper.style.width = originalWidth;
+        // Vertical (default)
+        img.style.width = '100%';
+        img.style.height = `${imageHeight}%`;
+        img.style.top = `-${(imageHeight - 100) / 2}%`;
       }
       
-      if (imgHeight && imgHeight !== 'auto' && imgHeight !== '0px') {
-        wrapper.style.height = imgHeight;
-      } else {
-        wrapper.style.height = originalHeight;
-      }
+      // Transform will be recalculated by updateParallax()
     });
   }
   
@@ -252,14 +265,12 @@
       }
     }, { passive: true });
     
-    // Handle resize - recalculate dimensions and update parallax
+    // Handle resize - just update parallax transforms
+    // Wrapper uses 'inherit' so CSS handles dimension changes automatically
     let resizeTimeout;
     window.addEventListener('resize', function() {
       clearTimeout(resizeTimeout);
-      resizeTimeout = setTimeout(function() {
-        recalculateDimensions();
-        updateParallax();
-      }, 150);
+      resizeTimeout = setTimeout(updateParallax, 150);
     }, { passive: true });
   }
   
@@ -294,6 +305,7 @@
   
   // Initialize on various load states
   function init() {
+    injectStyles();
     initParallax();
     observeDOM();
   }
@@ -316,7 +328,7 @@
     init: initParallax,
     update: updateParallax,
     recalculate: recalculateDimensions,
-    version: '2.5.0'
+    version: '2.5.4'
   };
   
 })();
